@@ -48,5 +48,6 @@ public class RegionLayerManager : MonoBehaviour
         {
             gameObject.layer = LayerMask.NameToLayer("DarkRegion");
         }
+        
     }
 }
