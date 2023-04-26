@@ -1,3 +1,4 @@
+using Pathfinding;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -7,13 +8,23 @@ public class RegionLayerManager : MonoBehaviour
     private LightRegion _region;
     private LanternMeadow _meadow;
 
+
     private RegionType _regionType;
+    private Bounds _regionBound;
     private int _cur;
 
-    private void Start()
+    private void Awake()
     {
+        //find the rigidBody
+        _regionBound = GetComponent<Collider2D>().bounds;
+        
+
         _region = GetComponent<LightRegion>();
         _meadow = GetComponent<LanternMeadow>();
+        
+    }
+    private void Start()
+    {
         _regionType = _region.LightRegionType;
         _cur = _meadow.Current;
         ChangeLayer();
@@ -39,6 +50,7 @@ public class RegionLayerManager : MonoBehaviour
     private void ChangeLayer()
     {
         
+        var previousLayer = gameObject.layer;
         if (_cur > 0 || _regionType == RegionType.Bright)
         {
 
@@ -49,5 +61,10 @@ public class RegionLayerManager : MonoBehaviour
             gameObject.layer = LayerMask.NameToLayer("DarkRegion");
         }
         
+        if (gameObject.layer != previousLayer)
+        {
+
+            AstarPath.active.UpdateGraphs(new GraphUpdateObject(_regionBound));
+        }
     }
 }

@@ -27,14 +27,13 @@ public class LightRegion: MonoBehaviour
 
     public UnityEvent<RegionType> OnRegionTypeChange;
 
-    private Collider2D _regionShape;
+
     private SpriteRenderer _spriteRenderer;
 
    
     private void Start()
     {
-        //find the rigidBody
-        _regionShape = GetComponent<Collider2D>();
+        
         _spriteRenderer = GetComponent<SpriteRenderer>();
 
         LightRegionType = _regionType;
