@@ -7,164 +7,183 @@ using System;
 
 public class LChaserFSM : MonoBehaviour
 {
+    public Transform _AstarTarget;
+
     private Timer _timer;
     private StateMachine _fsmLc;
-    public Transform _astarTarget;
     private LanternMeadow _targetLantern;
 
-    public void RandomChangeAStarTarget() {
-        HelperLib.generateAnimalRandom("LChaser", _astarTarget);
-    }
-
-    public void OnRegionTypeChangeChaser(RegionType type, LanternMeadow lantern) {
-        if (type == RegionType.Dark && lantern.transform.position == _astarTarget.position) {
+    #region Event Trigger
+    // when any LightRegion change, will trigger this function
+    public void OnRegionTypeChangeTrigger(RegionType type, LanternMeadow lantern) {
+        if (type == RegionType.Dark && lantern.transform.position == _AstarTarget.position) {
             _targetLantern = null;
+
+            _fsmLc.Trigger("RegionChangeDark");
         }
 
         // if further than current target far LC won't go
-        if (_targetLantern != null && 
-            Vector3.Distance(this.transform.position, lantern.transform.position) > Vector3.Distance(this.transform.position, _astarTarget.position)
+        if (_targetLantern != null &&
+            Vector3.Distance(this.transform.position, lantern.transform.position) > Vector3.Distance(this.transform.position, _AstarTarget.position)
         ) {
             return;
         }
-        _astarTarget.position = lantern.transform.position;
+        _AstarTarget.position = lantern.transform.position;
         _targetLantern = lantern;
+
+        _fsmLc.Trigger("RegionChangeBright");
     }
+    #endregion
+
+    #region FSM onLogic
+    public void RandomChangeAStarTarget() {
+        Vector2 rand = HelperLib.generateAnimalRandom("LChaser");
+        Vector3 tmp = new Vector3(rand.x, rand.y, 0f);
+        Debug.Log("RandomChangeAStarTarget"+ tmp);
+        _AstarTarget.position = tmp;
+    }
+    public void EatGrass() {
+        _targetLantern.Eaten(1);
+    }
+    #endregion
 
     // Start is called before the first frame update
-    void Start()
-    {
+    void Start() {
         _timer = new Timer();
         _targetLantern = null;
 
         _fsmLc = new StateMachine();
         _fsmLc.AddState("Random",
             new State(
-                onEnter: (state) => { 
-                    _timer.SetRandomTimer(RandomChangeAStarTarget); 
+                onEnter: (state) => {
+                    _timer.SetTimer(5.0f, RandomChangeAStarTarget, true);
                 },
                 onLogic: (state) => {
-                    // will call RandomChangeAStarTarget once time reach
-                    _timer.manualUpdate();
+                    if (_timer.ManualUpdate()) {
+                        _timer.SetTimer(5.0f, RandomChangeAStarTarget, true);
+                    }
                 },
                 onExit: (state) => {
                     _timer.StopTimer();
                 }
             )
         );
-        _fsmLc.AddState("ChaseLight",
-            new State(
-                onEnter: (state) => {
-                    Debug.Log("Start Chase Light");
-                }
-            )
-        );
+        //_fsmLc.AddState("ChaseLight",
+        //    new State(
+        //        onEnter: (state) => {
+        //            Debug.Log("ChaseLight");
+        //        }
+        //    )
+        //);
 
-        _fsmLc.AddState("EatGrass",
-            new State(
-                onEnter: (state) => { _timer.StopTimer(); }
-            )
-        );
+        //_fsmLc.AddState("EatGrass",
+        //    new State(
+        //        onEnter: (state) => {
+        //        },
+        //        onLogic: (state) => {
+        //        },
+        //        onExit: (state) => {
+        //        }
+        //    )
+        //);
 
+        //_fsmLc.AddTriggerTransition(
+        //    "RegionChangeBright",
+        //    "Random",
+        //    "ChaseLight"
+        //);
 
+        //_fsmLc.AddTriggerTransition(
+        //    "RegionChangeDark",
+        //    "ChaseLight",
+        //    "Random"
+        //);
+
+        //_fsmLc.AddTransition(
+        //    "ChaseLight",
+        //    "EatGrass",
+        //    transition => Vector3.Distance(this.transform.position, _AstarTarget.position) < 0.5f
+        //);
+
+        //_fsmLc.AddTransition(
+        //    "EatGrass",
+        //    "Random",
+        //    transition => _targetLantern.Current <= 0
+        //);
+
+        _fsmLc.SetStartState("Random");
+        _fsmLc.Init();
     }
 
     // Update is called once per frame
     void Update()
     {
-
+        _fsmLc.OnLogic();
     }
 }
 
 public static class HelperLib {
-    public static void generateAnimalRandom(string animal, Transform target) {
+    public static Vector2 generateAnimalRandom(string animal) {
+        LayerMask groundLayer = 1 << LayerMask.NameToLayer("Ground");
+        LayerMask obstacleLayer = 1 << LayerMask.NameToLayer("Obstacle");
+        LayerMask bregionLayer = 1 << LayerMask.NameToLayer("BrightRegion");
+        LayerMask lhunterLayer = 1 << LayerMask.NameToLayer("LHunter");
 
         while (true) {
             
-            Vector3 rand = new Vector3(
+            Vector3 rand = new Vector2(
                 UnityEngine.Random.Range(-15f, 15f),
-                UnityEngine.Random.Range(-10f, 10f),
-                0.0f
+                UnityEngine.Random.Range(-10f, 10f)
             );
+            if (!isPointInRegion(rand, groundLayer)) continue;
+            if (isPointInRegion(rand, obstacleLayer)) continue;
 
-            if (isPointInRegion(rand, "Obstacle")) continue;
+            switch (animal) {
+                case "LChaser":
+                    if (isPointInRegion(rand, lhunterLayer)) break;
+                    return rand;
 
-                switch (animal) {
-                    case "LChaser":
-                        if (isPointInRegion(rand, "LHunter")) break;
-                        target.position = rand;
-                        return;
-
-                    case "LHunter":
-                        if (isPointInRegion(rand, "BrightRegion")) break;
-                        target.position = rand;
-                        return;
+                case "LHunter":
+                    if (isPointInRegion(rand, bregionLayer)) break;
+                return rand;
             }
         }
     }
     
-    public static bool isPointInRegion(Vector3 point, string tag) {
-        // Get all objects with the "Obstacle" tag
-        GameObject[] obstacles = GameObject.FindGameObjectsWithTag(tag);
-
-        // Loop through each obstacle and check if the point is within its box collider
-        foreach (GameObject obstacle in obstacles) {
-            BoxCollider2D collider = obstacle.GetComponent<BoxCollider2D>();
-
-            if (collider != null && collider.bounds.Contains(point)) {
-                // The point is within the obstacle's box collider
-                return true;
-            }
-        }
-
-        return false;
+    public static bool isPointInRegion(Vector2 point, LayerMask layermask) {
+        return Physics2D.OverlapPoint(point, layermask) != null;
     }
 }
 
 public class Timer {
+
     private float _currTime;
     private float _timeLimit;
-    private bool manual;
-    private bool pause;
+    private bool _pause;
 
     private Action _timerOperation;
+    private Func<bool> _updateOperation;
 
-    public Timer() {
+
+    public Timer(){
         _currTime = 0f;
         _timeLimit = 0f;
 
         _timerOperation = null;
+        _updateOperation = null;
 
-        manual = false;
-        pause= true;
+        _pause= true;
     }
 
-    public void SetTimer(float timeLimit, Action timerOperation) {
-        _currTime = 0f;
-        _timeLimit = timeLimit;
-
-        _timerOperation = timerOperation;
-        
-        manual = false;
-        pause = false;
-    }
-
-    public void SetManualTimer(float timeLimit, Action timerOperation) {
+    public void SetTimer(float timeLimit, Action timerOperation, bool loopOnce) {
+        Debug.Log("SetTimer: " + timeLimit);
         _currTime = 0f;
         _timeLimit = timeLimit;
 
         _timerOperation = timerOperation;
 
-        manual = true;
-    }
-
-    public void SetRandomTimer(Action timerOperation) {
-        _currTime = 0f;
-        _timeLimit = UnityEngine.Random.Range(1.0f, 5.0f);
-
-        _timerOperation = timerOperation;
-        
-        manual = true;
+        _updateOperation = loopOnce ? LoopOnce : LoopInfinite;
+        _pause = false;
     }
 
     public void ResetTimer() {
@@ -176,28 +195,36 @@ public class Timer {
         _timeLimit = 0f;
 
         _timerOperation = null;
+        _updateOperation = null;
 
-        manual = false;
-        pause = true;
+        _pause = true;
     }
 
-    // automaticly update
-    private void Update() {
-        if (manual) return;
-        if (!pause) {
+    public bool LoopOnce() {
+        if (!_pause) {
+            _currTime += Time.deltaTime;
+            if (_currTime >= _timeLimit) {
+                _timerOperation?.Invoke();
+                StopTimer();
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public bool LoopInfinite() {
+        if (!_pause) {
             _currTime += Time.deltaTime;
             if (_currTime >= _timeLimit) {
                 _timerOperation?.Invoke();
                 ResetTimer();
+                return true;
             }
         }
+        return false;
     }
 
-    public void manualUpdate() {
-        _currTime += Time.deltaTime;
-        if (_currTime >= _timeLimit) {
-            _timerOperation?.Invoke();
-            ResetTimer();
-        }
+    public bool ManualUpdate() {
+        return _updateOperation();
     }
 }
