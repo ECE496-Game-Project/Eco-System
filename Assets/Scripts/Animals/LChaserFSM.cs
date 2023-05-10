@@ -68,48 +68,52 @@ public class LChaserFSM : MonoBehaviour
                 }
             )
         );
-        //_fsmLc.AddState("ChaseLight",
-        //    new State(
-        //        onEnter: (state) => {
-        //            Debug.Log("ChaseLight");
-        //        }
-        //    )
-        //);
+        _fsmLc.AddState("ChaseLight",
+            new State(
+                onEnter: (state) =>
+                {
+                    Debug.Log("ChaseLight");
+                }
+            )
+        );
 
-        //_fsmLc.AddState("EatGrass",
-        //    new State(
-        //        onEnter: (state) => {
-        //        },
-        //        onLogic: (state) => {
-        //        },
-        //        onExit: (state) => {
-        //        }
-        //    )
-        //);
+        _fsmLc.AddState("EatGrass",
+            new State(
+                onEnter: (state) =>
+                {
+                },
+                onLogic: (state) =>
+                {
+                },
+                onExit: (state) =>
+                {
+                }
+            )
+        );
 
-        //_fsmLc.AddTriggerTransition(
-        //    "RegionChangeBright",
-        //    "Random",
-        //    "ChaseLight"
-        //);
+        _fsmLc.AddTriggerTransition(
+            "RegionChangeBright",
+            "Random",
+            "ChaseLight"
+        );
 
-        //_fsmLc.AddTriggerTransition(
-        //    "RegionChangeDark",
-        //    "ChaseLight",
-        //    "Random"
-        //);
+        _fsmLc.AddTriggerTransition(
+            "RegionChangeDark",
+            "ChaseLight",
+            "Random"
+        );
 
-        //_fsmLc.AddTransition(
-        //    "ChaseLight",
-        //    "EatGrass",
-        //    transition => Vector3.Distance(this.transform.position, _AstarTarget.position) < 0.5f
-        //);
+        _fsmLc.AddTransition(
+            "ChaseLight",
+            "EatGrass",
+            transition => Vector3.Distance(this.transform.position, _AstarTarget.position) < 0.5f
+        );
 
-        //_fsmLc.AddTransition(
-        //    "EatGrass",
-        //    "Random",
-        //    transition => _targetLantern.Current <= 0
-        //);
+        _fsmLc.AddTransition(
+            "EatGrass",
+            "Random",
+            transition => _targetLantern.Current <= 0
+        );
 
         _fsmLc.SetStartState("Random");
         _fsmLc.Init();
@@ -118,6 +122,7 @@ public class LChaserFSM : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
+        Debug.Log(_fsmLc.ActiveStateName);
         _fsmLc.OnLogic();
     }
 }
@@ -225,6 +230,7 @@ public class Timer {
     }
 
     public bool ManualUpdate() {
+        if (_updateOperation == null) return false;
         return _updateOperation();
     }
 }
