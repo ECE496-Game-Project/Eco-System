@@ -2,6 +2,7 @@ using Pathfinding;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Events;
 
 public class RegionLayerManager : MonoBehaviour
 {
@@ -13,6 +14,7 @@ public class RegionLayerManager : MonoBehaviour
     private Bounds _regionBound;
     private int _cur;
 
+    public UnityEvent<RegionType, Transform> OnRegionTypeChanged;
     private void Awake()
     {
         //find the rigidBody
@@ -51,19 +53,23 @@ public class RegionLayerManager : MonoBehaviour
     {
         
         var previousLayer = gameObject.layer;
+
+        RegionType newType;
         if (_cur > 0 || _regionType == RegionType.Bright)
         {
 
             gameObject.layer = LayerMask.NameToLayer("BrightRegion");
+            newType = RegionType.Bright;
         }
         else
         {
             gameObject.layer = LayerMask.NameToLayer("DarkRegion");
+            newType= RegionType.Dark;
         }
         
         if (gameObject.layer != previousLayer)
         {
-
+            OnRegionTypeChanged?.Invoke(newType, transform);
             AstarPath.active.UpdateGraphs(new GraphUpdateObject(_regionBound));
         }
     }

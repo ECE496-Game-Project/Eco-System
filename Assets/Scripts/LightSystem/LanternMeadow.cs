@@ -9,7 +9,11 @@ public class LanternMeadow : MonoBehaviour
     private int _max;
     private int _cur;
 
+    private RegionType _region;
+
     public UnityEvent<int> OnCurrentGrassChange;
+
+    
 
     public int Current
     {
@@ -42,6 +46,7 @@ public class LanternMeadow : MonoBehaviour
 
     public void OnRegionChange(RegionType type)
     {
+        _region = type;
         if (type == RegionType.Bright)
         {
             if (_dyingCoroutine != null) StopCoroutine(_dyingCoroutine);
@@ -69,6 +74,8 @@ public class LanternMeadow : MonoBehaviour
     {
         if (Current < amount)  return false;
         Current -= amount;
+
+        if (_region == RegionType.Bright) Current = _max;
         return true;
     }
 }

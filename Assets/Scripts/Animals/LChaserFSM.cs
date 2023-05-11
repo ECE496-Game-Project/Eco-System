@@ -7,30 +7,57 @@ using System;
 
 public class LChaserFSM : MonoBehaviour
 {
-    public Transform _AstarTarget;
+    private Transform _AstarTarget;
+
+    private Transform AstarTarget
+    {
+        get { return _AstarTarget; }
+        set {
+
+            GetComponent<AIDestinationSetter>().target = value;
+            _AstarTarget = value;
+        
+        }
+    }
+
+    public Transform _randomTarget;
 
     private Timer _timer;
     private StateMachine _fsmLc;
     private LanternMeadow _targetLantern;
 
+    [SerializeField]
+    private float _eatDuration;
+
     #region Event Trigger
     // when any LightRegion change, will trigger this function
-    public void OnRegionTypeChangeTrigger(RegionType type, LanternMeadow lantern) {
-        if (type == RegionType.Dark && lantern.transform.position == _AstarTarget.position) {
-            _targetLantern = null;
+    public void OnRegionTypeChangeTrigger(RegionType type, Transform location) {
 
-            _fsmLc.Trigger("RegionChangeDark");
-        }
+        if (type == RegionType.Dark) {
+            //Debug.Log(location.name + " becomes Dark");
+            if (location == AstarTarget)
+            {
+                _targetLantern = null;
+                _fsmLc.Trigger("RegionChangeDark");
+                //Debug.Log(location.name + "Trigger Dark");
+            }
 
-        // if further than current target far LC won't go
-        if (_targetLantern != null &&
-            Vector3.Distance(this.transform.position, lantern.transform.position) > Vector3.Distance(this.transform.position, _AstarTarget.position)
-        ) {
+            
             return;
         }
-        _AstarTarget.position = lantern.transform.position;
-        _targetLantern = lantern;
 
+        //Debug.Log(location.name + " becomes Bright");
+        // if further than current target far LC won't go
+        if (AstarTarget != _randomTarget && AstarTarget != null &&
+            Vector3.Distance(this.transform.position, location.position) > Vector3.Distance(this.transform.position, AstarTarget.position)
+        ) {
+            //Debug.Log(location.name + " is too far");
+            return;
+        }
+        AstarTarget = location;
+        _targetLantern = location.GetComponent<LanternMeadow>();
+
+        //Debug.Log(location.name + "Trigger Bright");
         _fsmLc.Trigger("RegionChangeBright");
     }
     #endregion
@@ -39,8 +66,8 @@ public class LChaserFSM : MonoBehaviour
     public void RandomChangeAStarTarget() {
         Vector2 rand = HelperLib.generateAnimalRandom("LChaser");
         Vector3 tmp = new Vector3(rand.x, rand.y, 0f);
-        Debug.Log("RandomChangeAStarTarget"+ tmp);
-        _AstarTarget.position = tmp;
+        //Debug.Log("RandomChangeAStarTarget"+ tmp);
+        AstarTarget.position = tmp;
     }
     public void EatGrass() {
         _targetLantern.Eaten(1);
@@ -52,10 +79,14 @@ public class LChaserFSM : MonoBehaviour
         _timer = new Timer();
         _targetLantern = null;
 
+        SubscribeToLaternMeadow();
+
         _fsmLc = new StateMachine();
         _fsmLc.AddState("Random",
             new State(
                 onEnter: (state) => {
+                    Debug.Log("Enter Random");
+                    AstarTarget = _randomTarget;
                     _timer.SetTimer(5.0f, RandomChangeAStarTarget, true);
                 },
                 onLogic: (state) => {
@@ -64,7 +95,10 @@ public class LChaserFSM : MonoBehaviour
                     }
                 },
                 onExit: (state) => {
+                    
                     _timer.StopTimer();
+                    if (AstarTarget == _randomTarget)
+                        AstarTarget = null;
                 }
             )
         );
@@ -81,9 +115,17 @@ public class LChaserFSM : MonoBehaviour
             new State(
                 onEnter: (state) =>
                 {
+                    Debug.Log("Eat");
                 },
                 onLogic: (state) =>
                 {
+                    transform.Rotate(Vector3.forward, 360 * Time.deltaTime / _eatDuration);
+                    if (state.timer.Elapsed > _eatDuration)
+                    {
+                        state.timer.Reset();
+                        EatGrass();
+                        
+                    }
                 },
                 onExit: (state) =>
                 {
@@ -106,23 +148,34 @@ public class LChaserFSM : MonoBehaviour
         _fsmLc.AddTransition(
             "ChaseLight",
             "EatGrass",
-            transition => Vector3.Distance(this.transform.position, _AstarTarget.position) < 0.5f
+            transition => AstarTarget != null && 
+                          Vector3.Distance(this.transform.position, AstarTarget.position) < 0.5f
         );
 
         _fsmLc.AddTransition(
             "EatGrass",
             "Random",
-            transition => _targetLantern.Current <= 0
+            transition => _targetLantern == null || _targetLantern.Current <= 0
         );
 
         _fsmLc.SetStartState("Random");
         _fsmLc.Init();
     }
 
+    private void SubscribeToLaternMeadow()
+    {
+        RegionLayerManager[] regions = GameObject.FindObjectsOfType<RegionLayerManager>();
+
+        foreach(var region in regions)
+        {
+            region.OnRegionTypeChanged.AddListener(OnRegionTypeChangeTrigger);
+        }
+    }
+
     // Update is called once per frame
     void Update()
     {
-        Debug.Log(_fsmLc.ActiveStateName);
+        //Debug.Log(_fsmLc.ActiveStateName);
         _fsmLc.OnLogic();
     }
 }
@@ -181,7 +234,7 @@ public class Timer {
     }
 
     public void SetTimer(float timeLimit, Action timerOperation, bool loopOnce) {
-        Debug.Log("SetTimer: " + timeLimit);
+        //Debug.Log("SetTimer: " + timeLimit);
         _currTime = 0f;
         _timeLimit = timeLimit;
 

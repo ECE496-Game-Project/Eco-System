@@ -22,12 +22,10 @@ public class LightRegion: MonoBehaviour
             _regionType = value;
             ChangeColor();
             OnRegionTypeChange?.Invoke(_regionType);
-            OnRegionTypeChangeChaser?.Invoke(_regionType, this.GetComponent<LanternMeadow>());
         }
     }
 
     public UnityEvent<RegionType> OnRegionTypeChange;
-    public UnityEvent<RegionType, LanternMeadow> OnRegionTypeChangeChaser;
 
 
     private SpriteRenderer _spriteRenderer;
