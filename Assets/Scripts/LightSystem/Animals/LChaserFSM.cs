@@ -76,12 +76,33 @@ public class LChaserFSM : MonoBehaviour
 
     // Start is called before the first frame update
     void Start() {
+        return;
         _timer = new Timer();
         _targetLantern = null;
 
         SubscribeToLaternMeadow();
 
         _fsmLc = new StateMachine();
+
+        _fsmLc.AddState("Idle",
+            new State(
+                onEnter: (state) =>
+                {
+                    Debug.Log("Enter Idle");
+                },
+                onLogic: (state) =>
+                {
+                    if (state.timer.Elapsed > 3f)
+                    {
+                        state.fsm.StateCanExit();  
+                    }
+                },
+                onExit: (state) =>
+                {
+
+                },
+                needsExitTime: true
+                ));
         _fsmLc.AddState("Random",
             new State(
                 onEnter: (state) => {
@@ -133,6 +154,25 @@ public class LChaserFSM : MonoBehaviour
             )
         );
 
+        _fsmLc.AddTransition("Idle", "Random",
+            t => true/*no light*/);
+
+        _fsmLc.AddTransition("Idle", "ChaseLight",
+            t => false /*has light*/);
+
+        _fsmLc.AddTransition("Random", "Idle",
+            t => GetComponent<IAstarAI>().reachedDestination
+            );
+
+        _fsmLc.AddTriggerTransition("LoseTarget", "ChaseLight", "Idle");
+
+        _fsmLc.AddTransition("EatGrass", "Idle",
+            t => _targetLantern == null || _targetLantern.Current <= 0);
+
+        _fsmLc.AddTransition("ChaseLight", "EatGrass",
+            transition => GetComponent<IAstarAI>().reachedDestination
+        ) ;
+        /*
         _fsmLc.AddTriggerTransition(
             "RegionChangeBright",
             "Random",
@@ -157,8 +197,8 @@ public class LChaserFSM : MonoBehaviour
             "Random",
             transition => _targetLantern == null || _targetLantern.Current <= 0
         );
-
-        _fsmLc.SetStartState("Random");
+        */
+        _fsmLc.SetStartState("Idle");
         _fsmLc.Init();
     }
 
@@ -175,6 +215,7 @@ public class LChaserFSM : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
+        return;
         //Debug.Log(_fsmLc.ActiveStateName);
         _fsmLc.OnLogic();
     }

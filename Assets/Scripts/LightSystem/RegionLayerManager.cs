@@ -11,6 +11,7 @@ public class RegionLayerManager : MonoBehaviour
 
 
     private RegionType _regionType;
+    public RegionType Type { get { return _regionType; } }
     private Bounds _regionBound;
     private int _cur;
 
