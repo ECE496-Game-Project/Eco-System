@@ -4,6 +4,7 @@ using UnityEngine;
 using FSM;
 using Pathfinding;
 using System;
+using System.Runtime.InteropServices.WindowsRuntime;
 
 public class LChaserFSM : MonoBehaviour
 {
@@ -16,9 +17,12 @@ public class LChaserFSM : MonoBehaviour
 
             GetComponent<AIDestinationSetter>().target = value;
             _AstarTarget = value;
-        
+            _ai.SearchPath();
+
         }
     }
+
+    IAstarAI _ai;
 
     public Transform _randomTarget;
 
@@ -33,7 +37,17 @@ public class LChaserFSM : MonoBehaviour
     // when any LightRegion change, will trigger this function
     public void OnRegionTypeChangeTrigger(RegionType type, Transform location) {
 
-        if (type == RegionType.Dark) {
+        if (location != AstarTarget)
+        {
+            Debug.Log("Location is not AstarTarget");
+            return;
+        }
+
+        if (type == RegionType.Dark)
+        {
+            _fsmLc.Trigger("LoseTarget");
+        }
+        /*if (type == RegionType.Dark) {
             //Debug.Log(location.name + " becomes Dark");
             if (location == AstarTarget)
             {
@@ -58,7 +72,7 @@ public class LChaserFSM : MonoBehaviour
         _targetLantern = location.GetComponent<LanternMeadow>();
 
         //Debug.Log(location.name + "Trigger Bright");
-        _fsmLc.Trigger("RegionChangeBright");
+        _fsmLc.Trigger("RegionChangeBright");*/
     }
     #endregion
 
@@ -76,11 +90,11 @@ public class LChaserFSM : MonoBehaviour
 
     // Start is called before the first frame update
     void Start() {
-        return;
         _timer = new Timer();
         _targetLantern = null;
+        _ai = GetComponent<IAstarAI>();
 
-        SubscribeToLaternMeadow();
+        //SubscribeToLaternMeadow();
 
         _fsmLc = new StateMachine();
 
@@ -88,6 +102,7 @@ public class LChaserFSM : MonoBehaviour
             new State(
                 onEnter: (state) =>
                 {
+                    AstarTarget = null;
                     Debug.Log("Enter Idle");
                 },
                 onLogic: (state) =>
@@ -107,19 +122,19 @@ public class LChaserFSM : MonoBehaviour
             new State(
                 onEnter: (state) => {
                     Debug.Log("Enter Random");
+                    RandomChangeAStarTarget();
                     AstarTarget = _randomTarget;
-                    _timer.SetTimer(5.0f, RandomChangeAStarTarget, true);
+                    
+                    //_timer.SetTimer(5.0f, RandomChangeAStarTarget, true);
                 },
                 onLogic: (state) => {
-                    if (_timer.ManualUpdate()) {
-                        _timer.SetTimer(5.0f, RandomChangeAStarTarget, true);
-                    }
+                    //if (_timer.ManualUpdate()) {
+                    //    _timer.SetTimer(5.0f, RandomChangeAStarTarget, true);
+                    //}
                 },
                 onExit: (state) => {
                     
-                    _timer.StopTimer();
-                    if (AstarTarget == _randomTarget)
-                        AstarTarget = null;
+                    //_timer.StopTimer();
                 }
             )
         );
@@ -128,6 +143,23 @@ public class LChaserFSM : MonoBehaviour
                 onEnter: (state) =>
                 {
                     Debug.Log("ChaseLight");
+                    Transform target = LightRecorder.Instance.GetClosestBrightRegion(transform);
+                    if (target == null)
+                    {
+                        _fsmLc.Trigger("LoseTarget");
+                        return;
+                    }
+
+                    var region = target.GetComponent<RegionLayerManager>();
+                    region.OnRegionTypeChanged.AddListener(OnRegionTypeChangeTrigger);
+                    AstarTarget = target;
+                },
+
+                onExit: (state) =>
+                {
+                    Debug.Log("Exit ChaseLight");
+                    var region = AstarTarget.GetComponent<RegionLayerManager>();
+                    region.OnRegionTypeChanged.RemoveListener(OnRegionTypeChangeTrigger);
                 }
             )
         );
@@ -137,6 +169,8 @@ public class LChaserFSM : MonoBehaviour
                 onEnter: (state) =>
                 {
                     Debug.Log("Eat");
+                    _targetLantern = AstarTarget.GetComponent<LanternMeadow>();
+                    
                 },
                 onLogic: (state) =>
                 {
@@ -150,28 +184,31 @@ public class LChaserFSM : MonoBehaviour
                 },
                 onExit: (state) =>
                 {
+                    _targetLantern = null;
                 }
             )
         );
 
         _fsmLc.AddTransition("Idle", "Random",
-            t => true/*no light*/);
+            t => LightRecorder.Instance.BrightRegionsCount <= 0);
 
         _fsmLc.AddTransition("Idle", "ChaseLight",
-            t => false /*has light*/);
+            t => LightRecorder.Instance.BrightRegionsCount > 0);
 
         _fsmLc.AddTransition("Random", "Idle",
-            t => GetComponent<IAstarAI>().reachedDestination
+            t => _ai.reachedDestination
             );
 
         _fsmLc.AddTriggerTransition("LoseTarget", "ChaseLight", "Idle");
 
+        _fsmLc.AddTransition("ChaseLight", "EatGrass",
+            transition => _ai.reachedDestination
+        );
+
         _fsmLc.AddTransition("EatGrass", "Idle",
             t => _targetLantern == null || _targetLantern.Current <= 0);
 
-        _fsmLc.AddTransition("ChaseLight", "EatGrass",
-            transition => GetComponent<IAstarAI>().reachedDestination
-        ) ;
+        
         /*
         _fsmLc.AddTriggerTransition(
             "RegionChangeBright",
@@ -215,7 +252,6 @@ public class LChaserFSM : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        return;
         //Debug.Log(_fsmLc.ActiveStateName);
         _fsmLc.OnLogic();
     }

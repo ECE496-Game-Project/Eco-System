@@ -67,7 +67,7 @@ public class LightRecorder : MonoBehaviour
         else if (type == RegionType.Dark) _darkRegion.Add(id);
 
         _regionStatus[id] = type;
-        Test();
+        //Test();
     }
 
     public Transform GetClosestBrightRegion(Transform t)
